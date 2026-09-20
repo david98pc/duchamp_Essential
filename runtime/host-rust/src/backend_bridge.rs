@@ -16,7 +16,7 @@ const SOCKET_NAME: &str = "rodin_essentiald_v15";
 const REVERSE_SOCKET_NAME: &str = "rodin_essential_app_v15";
 const LOOPBACK_PORT: u16 = 732;
 const LOOPBACK_PRIVILEGE_PROBE_PORT: u16 = 731;
-const EXTENDED_VALUE_COUNT: usize = 105;
+const EXTENDED_VALUE_COUNT: usize = 81;
 
 #[repr(C)]
 struct SockAddrUn {
@@ -100,9 +100,7 @@ struct Cache {
 impl Cache {
     fn new() -> Self {
         Self {
-            // No successful or failed connection attempt has completed yet.
-            // Keep this distinct from a verified unavailable daemon.
-            ready: AtomicI32::new(-1),
+            ready: AtomicI32::new(0),
             action_state: AtomicI32::new(0),
             charging_write_state: AtomicI32::new(0),
             charging_mode: AtomicI32::new(-1),
@@ -132,13 +130,7 @@ impl Cache {
             video: AtomicI32::new(-1),
             dolby: AtomicI32::new(-1),
             performance: AtomicI32::new(-1),
-            extended: std::array::from_fn(|index| {
-                AtomicI32::new(if matches!(index, 81 | 94 | 96 | 104) {
-                    0
-                } else {
-                    -1
-                })
-            }),
+            extended: std::array::from_fn(|_| AtomicI32::new(-1)),
         }
     }
 }
@@ -303,21 +295,9 @@ fn ensure_daemon_running() {
     }
 }
 
-trait DaemonStream: Read + Write {
-    fn set_response_timeout(&self, timeout: Duration) -> std::io::Result<()>;
-}
+trait DaemonStream: Read + Write {}
 
-impl DaemonStream for UnixStream {
-    fn set_response_timeout(&self, timeout: Duration) -> std::io::Result<()> {
-        self.set_read_timeout(Some(timeout))
-    }
-}
-
-impl DaemonStream for TcpStream {
-    fn set_response_timeout(&self, timeout: Duration) -> std::io::Result<()> {
-        self.set_read_timeout(Some(timeout))
-    }
-}
+impl<T: Read + Write> DaemonStream for T {}
 
 fn configure_unix_stream(stream: UnixStream) -> Box<dyn DaemonStream> {
     // Super Touch's vendor first-frame transaction may wait up to two seconds
@@ -440,14 +420,6 @@ fn connect_daemon() -> Result<Box<dyn DaemonStream>, String> {
 
 fn request(command: &str) -> Result<String, String> {
     let mut stream = connect_daemon()?;
-    if command == "GET system.colors" || command.starts_with("SET system.colors") {
-        // Framework palette generation is asynchronous and includes resource
-        // readback. Keep only these infrequent requests on a longer deadline;
-        // hardware commands and ordinary telemetry retain their existing limit.
-        stream
-            .set_response_timeout(Duration::from_secs(75))
-            .map_err(|error| format!("palette timeout configuration: {error}"))?;
-    }
     stream
         .write_all(command.as_bytes())
         .map_err(|e| format!("write: {e}"))?;
@@ -745,10 +717,6 @@ fn refresh(cache: &Cache) -> Result<(), String> {
         ("display_native_density", 78),
         ("touch_resampler_path", 79),
         ("touch_resampler_error", 80),
-        ("gpu_hw_min", 81),
-        ("gpu_hw_max", 82),
-        ("gpu_battery_max", 83),
-        ("gpu_opp_count", 84),
     ];
 
     for &(key, index) in extended_fields {
@@ -921,9 +889,7 @@ fn perform(command: Command) -> Result<(), String> {
                     if let Some(r) = runtime() {
                         r.cache.extended[52].store(a, Ordering::Release);
                         if a == 1 {
-                            let hw_max = r.cache.extended[82].load(Ordering::Acquire);
-                            r.cache.extended[48]
-                                .store(if hw_max > 0 { hw_max } else { 1300 }, Ordering::Release);
+                            r.cache.extended[48].store(1300, Ordering::Release);
                             r.cache.extended[51].store(0, Ordering::Release);
                         }
                     }
@@ -1080,170 +1046,7 @@ fn rodin_action_log(message: String) {
     let _ = message;
 }
 
-const PALETTE_FIELDS: [(&str, usize); 12] = [
-    ("mode", 82),
-    ("seed", 83),
-    ("style", 84),
-    ("primary", 85),
-    ("secondary", 86),
-    ("tertiary", 87),
-    ("neutral", 88),
-    ("neutral_variant", 89),
-    ("sdk", 90),
-    ("user", 91),
-    ("outcome", 92),
-    ("supported", 95),
-];
-
-fn parse_palette_response(body: &str) -> Result<Vec<(usize, i32)>, String> {
-    let mut map = std::collections::HashMap::new();
-    for (key, value) in body.split(';').filter_map(|field| field.split_once('=')) {
-        if map.insert(key, value).is_some() {
-            return Err("palette_response_invalid: duplicate palette field".into());
-        }
-    }
-    let mut values = Vec::with_capacity(PALETTE_FIELDS.len());
-    for (name, index) in PALETTE_FIELDS {
-        let value = map
-            .get(name)
-            .and_then(|value| value.parse::<i32>().ok())
-            .ok_or("palette_response_invalid: incomplete native palette response")?;
-        let valid = match index {
-            82 => (0..=2).contains(&value),
-            83 => (-1..=0x00ff_ffff).contains(&value),
-            84 => (-1..=6).contains(&value),
-            85..=89 => (0..=0x00ff_ffff).contains(&value),
-            90 => value >= 31,
-            91 => value >= 0,
-            92 => (0..=2).contains(&value),
-            95 => matches!(value, 0 | 1),
-            _ => false,
-        };
-        if !valid {
-            return Err("palette_response_invalid: invalid native palette value".into());
-        }
-        values.push((index, value));
-    }
-    Ok(values)
-}
-
-const CONTRAST_FIELDS: [(&str, usize); 6] = [
-    ("supported", 97),
-    ("level", 98),
-    ("light_container", 99),
-    ("light_on_container", 100),
-    ("dark_container", 101),
-    ("dark_on_container", 102),
-];
-
-fn parse_contrast_response(body: &str) -> Result<Vec<(usize, i32)>, String> {
-    let mut map = std::collections::HashMap::new();
-    for (key, value) in body.split(';').filter_map(|field| field.split_once('=')) {
-        if map.insert(key, value).is_some() {
-            return Err("palette_response_invalid: duplicate contrast field".into());
-        }
-    }
-    let mut values = Vec::with_capacity(CONTRAST_FIELDS.len());
-    for (name, index) in CONTRAST_FIELDS {
-        let value = map
-            .get(name)
-            .and_then(|value| value.parse::<i32>().ok())
-            .ok_or("palette_response_invalid: incomplete native contrast response")?;
-        let valid = match index {
-            97 => matches!(value, 0 | 1),
-            98 => (-1000..=1000).contains(&value),
-            99..=102 => (0..=0x00ff_ffff).contains(&value),
-            _ => false,
-        };
-        if !valid {
-            return Err("palette_response_invalid: invalid native contrast value".into());
-        }
-        values.push((index, value));
-    }
-    Ok(values)
-}
-
-fn palette_error_code(error: &str) -> i32 {
-    if error.contains("palette_unsupported") || error.contains("unknown command") {
-        1
-    } else if error.contains("palette_invalid_settings") {
-        2
-    } else if error.contains("palette_conflict") {
-        3
-    } else if error.contains("palette_service_unavailable") {
-        4
-    } else if error.contains("palette_readback") || error.contains("palette_restore_failed") {
-        5
-    } else if error.contains("palette_busy") {
-        6
-    } else if error.contains("palette_invalid_choice") {
-        8
-    } else if error.contains("palette_response_invalid") {
-        9
-    } else {
-        7
-    }
-}
-
-fn palette_command(op: i32, a: i32, b: i32) -> Result<String, String> {
-    match op {
-        24 if (0..=0x00ff_ffff).contains(&a) && (0..=6).contains(&b) => {
-            Ok(format!("SET system.colors {a} {b}"))
-        }
-        25 if a == 0 && b == 0 => Ok("SET system.colors.wallpaper".into()),
-        26 if a == 0 && b == 0 => Ok("GET system.colors".into()),
-        27 if a == 0 && b == 0 => Ok("GET system.colors.contrast".into()),
-        28 if (-1000..=1000).contains(&a) && b == 0 => {
-            Ok(format!("SET system.colors.contrast {a}"))
-        }
-        _ => Err("palette_invalid_choice".into()),
-    }
-}
-
-fn perform_palette(cache: &Cache, op: i32, a: i32, b: i32) {
-    let (state_index, error_index, revision_index) = if matches!(op, 27 | 28) {
-        (96, 103, 104)
-    } else {
-        (81, 93, 94)
-    };
-    cache.extended[state_index].store(1, Ordering::Release);
-    cache.extended[error_index].store(0, Ordering::Release);
-    let result = palette_command(op, a, b)
-        .and_then(|command| request(&command))
-        .and_then(|body| {
-            if matches!(op, 27 | 28) {
-                parse_contrast_response(&body)
-            } else {
-                parse_palette_response(&body)
-            }
-        });
-
-    let completed_state = match result {
-        Ok(values) => {
-            for (index, value) in values {
-                cache.extended[index].store(value, Ordering::Release);
-            }
-            rodin_action_log(format!("RODIN_SYSTEM_COLORS_PASS operation={op}"));
-            2
-        }
-        Err(error) => {
-            cache.extended[error_index].store(palette_error_code(&error), Ordering::Release);
-            rodin_action_log(format!(
-                "RODIN_SYSTEM_COLORS_FAIL operation={op} error={error}"
-            ));
-            -1
-        }
-    };
-    // Publish the revision before the terminal state. A client observing
-    // completion must also see the new values and revision, not the old stamp.
-    cache.extended[revision_index].fetch_add(1, Ordering::Release);
-    cache.extended[state_index].store(completed_state, Ordering::Release);
-}
-
 fn worker(cache: Arc<Cache>, rx: mpsc::Receiver<Command>) {
-    // Publish the authenticated reverse listener while Flutter is starting,
-    // so the daemon can connect before the first dashboard frame.
-    let _ = reverse_ipc();
     let mut logged_pass = false;
     let mut logged_fail = false;
     let mut last_idle_refresh = std::time::Instant::now()
@@ -1253,11 +1056,6 @@ fn worker(cache: Arc<Cache>, rx: mpsc::Receiver<Command>) {
     loop {
         match rx.recv_timeout(Duration::from_millis(500)) {
             Ok(command) => {
-                if let Command::Extended(op @ 24..=28, a, b) = &command {
-                    perform_palette(&cache, *op, *a, *b);
-                    last_idle_refresh = std::time::Instant::now();
-                    continue;
-                }
                 if matches!(&command, Command::Refresh) {
                     match refresh(&cache) {
                         Ok(()) => {
@@ -1367,16 +1165,14 @@ fn runtime() -> Option<&'static Runtime> {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rodin_backend_start() -> i32 {
-    RUNTIME.get_or_init(|| {
-        let cache = Arc::new(Cache::new());
-        let (tx, rx) = mpsc::channel();
-        let worker_cache = Arc::clone(&cache);
-        // Queue the first read immediately, not after the idle timer. This
-        // function itself never waits for IPC or blocks the launch surface.
-        let _ = tx.send(Command::Refresh);
-        std::thread::spawn(move || worker(worker_cache, rx));
-        Runtime { cache, tx }
-    });
+    if RUNTIME.get().is_some() {
+        return 1;
+    }
+    let cache = Arc::new(Cache::new());
+    let (tx, rx) = mpsc::channel();
+    let worker_cache = Arc::clone(&cache);
+    std::thread::spawn(move || worker(worker_cache, rx));
+    let _ = RUNTIME.set(Runtime { cache, tx });
     1
 }
 
@@ -1395,7 +1191,7 @@ pub extern "C" fn rodin_backend_refresh() -> i32 {
 pub extern "C" fn rodin_backend_ready() -> i32 {
     runtime()
         .map(|r| r.cache.ready.load(Ordering::Acquire))
-        .unwrap_or(-1)
+        .unwrap_or(0)
 }
 #[unsafe(no_mangle)]
 pub extern "C" fn rodin_backend_get_action_state() -> i32 {
@@ -1634,47 +1430,35 @@ pub extern "C" fn rodin_backend_get_performance_profile() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn rodin_backend_set_performance_profile(v: i32) -> i32 {
     if let Some(r) = runtime() {
-        let hw_min = match r.cache.extended[81].load(Ordering::Acquire) {
-            value if value > 0 => value,
-            _ => 260,
-        };
-        let hw_max = match r.cache.extended[82].load(Ordering::Acquire) {
-            value if value > 0 => value,
-            _ => 1300,
-        };
-        let battery_max = match r.cache.extended[83].load(Ordering::Acquire) {
-            value if value > 0 => value,
-            _ => 598,
-        };
         r.cache.performance.store(v, Ordering::Release);
         match v {
             3 => {
-                r.cache.extended[47].store(hw_max, Ordering::Release); // min_freq
-                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
+                r.cache.extended[47].store(1300, Ordering::Release); // min_freq
+                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
                 r.cache.extended[49].store(1, Ordering::Release); // gov = performance
                 r.cache.extended[50].store(1, Ordering::Release); // ged_boost = 1
                 r.cache.extended[52].store(1, Ordering::Release); // uncap = 1
                 r.cache.extended[59].store(1, Ordering::Release); // power_policy = always_on
             }
             1 => {
-                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
-                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
+                r.cache.extended[47].store(260, Ordering::Release); // min_freq
+                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
                 r.cache.extended[49].store(0, Ordering::Release); // gov = simple_ondemand
                 r.cache.extended[50].store(1, Ordering::Release); // ged_boost = 1
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0
                 r.cache.extended[59].store(1, Ordering::Release); // power_policy = always_on
             }
             2 => {
-                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
-                r.cache.extended[48].store(battery_max, Ordering::Release); // max_freq
+                r.cache.extended[47].store(260, Ordering::Release); // min_freq
+                r.cache.extended[48].store(598, Ordering::Release); // max_freq
                 r.cache.extended[49].store(2, Ordering::Release); // gov = powersave
                 r.cache.extended[50].store(0, Ordering::Release); // ged_boost = 0
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0
                 r.cache.extended[59].store(0, Ordering::Release); // power_policy = coarse_demand
             }
             _ => {
-                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
-                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
+                r.cache.extended[47].store(260, Ordering::Release); // min_freq
+                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
                 r.cache.extended[49].store(4, Ordering::Release); // gov = OEM dummy
                 r.cache.extended[50].store(0, Ordering::Release); // GED boost = off
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0
@@ -1703,157 +1487,5 @@ pub extern "C" fn rodin_backend_extended_get(index: i32) -> i32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rodin_backend_extended_set(op: i32, a: i32, b: i32) -> i32 {
-    if (24..=28).contains(&op) {
-        let Some(rt) = runtime() else {
-            return 0;
-        };
-        let state_index = if matches!(op, 27 | 28) { 96 } else { 81 };
-        let previous = rt.cache.extended[state_index].load(Ordering::Acquire);
-        if previous == 1
-            || rt.cache.extended[state_index]
-                .compare_exchange(previous, 1, Ordering::AcqRel, Ordering::Acquire)
-                .is_err()
-        {
-            return 0;
-        }
-        let accepted = send(Command::Extended(op, a, b));
-        if accepted == 0 {
-            rt.cache.extended[state_index].store(previous, Ordering::Release);
-        }
-        return accepted;
-    }
     send(Command::Extended(op, a, b))
-}
-
-#[cfg(test)]
-mod palette_tests {
-    use super::*;
-
-    #[test]
-    fn connection_status_does_not_report_offline_before_the_first_attempt() {
-        let cache = Cache::new();
-        assert_eq!(cache.ready.load(Ordering::Acquire), -1);
-        cache.ready.store(0, Ordering::Release);
-        assert_eq!(cache.ready.load(Ordering::Acquire), 0);
-        cache.ready.store(1, Ordering::Release);
-        assert_eq!(cache.ready.load(Ordering::Acquire), 1);
-    }
-
-    const RESPONSE: &str = "supported=1;mode=1;seed=34167;style=0;primary=2917496;secondary=6318962;tertiary=6712194;neutral=7699582;neutral_variant=7437181;sdk=36;user=10;outcome=1";
-    const CONTRAST_RESPONSE: &str = "supported=1;level=1000;light_container=16767459;light_on_container=7287626;dark_container=7287626;dark_on_container=16767459";
-
-    #[test]
-    fn reads_all_native_palette_fields_without_touching_hardware_cache() {
-        let values = parse_palette_response(RESPONSE).unwrap();
-        assert_eq!(values.len(), 12);
-        assert!(values.iter().all(|(index, _)| *index >= 82 && *index <= 95));
-        assert!(values.contains(&(91, 10)));
-        assert!(values.contains(&(83, 34167)));
-        assert!(values.contains(&(95, 1)));
-    }
-
-    #[test]
-    fn rejects_missing_duplicate_and_out_of_range_palette_fields() {
-        for invalid in [
-            RESPONSE.replace("primary=2917496;", ""),
-            RESPONSE.replace("seed=34167", "seed=16777216"),
-            RESPONSE.replace("style=0", "style=7"),
-            RESPONSE.replace("user=10", "user=-1"),
-            RESPONSE.replace("primary=2917496", "primary=-1"),
-            RESPONSE.replace("supported=1", "supported=2"),
-            format!("{RESPONSE};style=2"),
-        ] {
-            assert!(parse_palette_response(&invalid).is_err(), "{invalid}");
-        }
-    }
-
-    #[test]
-    fn accepts_unknown_external_style_and_future_android() {
-        assert!(
-            parse_palette_response(
-                &RESPONSE
-                    .replace("style=0", "style=-1")
-                    .replace("sdk=36", "sdk=37")
-            )
-            .is_ok()
-        );
-    }
-
-    #[test]
-    fn palette_operations_have_distinct_validated_commands() {
-        assert_eq!(
-            palette_command(24, 34167, 0).unwrap(),
-            "SET system.colors 34167 0"
-        );
-        assert_eq!(
-            palette_command(25, 0, 0).unwrap(),
-            "SET system.colors.wallpaper"
-        );
-        assert_eq!(palette_command(26, 0, 0).unwrap(), "GET system.colors");
-        assert_eq!(
-            palette_command(27, 0, 0).unwrap(),
-            "GET system.colors.contrast"
-        );
-        assert_eq!(
-            palette_command(28, -1000, 0).unwrap(),
-            "SET system.colors.contrast -1000"
-        );
-        for (op, a, b) in [
-            (24, -1, 0),
-            (24, 0x1000000, 0),
-            (24, 1, 7),
-            (25, 1, 0),
-            (26, 0, 1),
-            (27, 1, 0),
-            (28, -1001, 0),
-            (28, 1001, 0),
-            (23, 0, 0),
-        ] {
-            assert!(palette_command(op, a, b).is_err());
-        }
-    }
-
-    #[test]
-    fn validates_native_contrast_fields() {
-        let values = parse_contrast_response(CONTRAST_RESPONSE).unwrap();
-        assert_eq!(values.len(), 6);
-        assert!(values.contains(&(97, 1)));
-        assert!(values.contains(&(98, 1000)));
-        for invalid in [
-            CONTRAST_RESPONSE.replace("level=1000", "level=1001"),
-            CONTRAST_RESPONSE.replace("supported=1", "supported=2"),
-            CONTRAST_RESPONSE.replace("light_container=16767459;", ""),
-            format!("{CONTRAST_RESPONSE};level=0"),
-        ] {
-            assert!(parse_contrast_response(&invalid).is_err(), "{invalid}");
-        }
-    }
-
-    #[test]
-    fn separates_unsupported_offline_conflict_and_validation_errors() {
-        assert_eq!(palette_error_code("ERR unknown command"), 1);
-        assert_eq!(palette_error_code("palette_invalid_settings"), 2);
-        assert_eq!(palette_error_code("palette_conflict"), 3);
-        assert_eq!(palette_error_code("palette_service_unavailable"), 4);
-        assert_eq!(palette_error_code("palette_restore_failed"), 5);
-        assert_eq!(palette_error_code("palette_busy"), 6);
-        assert_eq!(palette_error_code("read: socket timed out"), 7);
-        assert_eq!(palette_error_code("palette_invalid_choice"), 8);
-        assert_eq!(palette_error_code("palette_response_invalid"), 9);
-    }
-
-    #[test]
-    fn cache_starts_without_fabricated_native_colors() {
-        let cache = Cache::new();
-        assert_eq!(cache.extended[81].load(Ordering::Acquire), 0);
-        assert_eq!(cache.extended[94].load(Ordering::Acquire), 0);
-        assert_eq!(cache.extended[96].load(Ordering::Acquire), 0);
-        assert_eq!(cache.extended[104].load(Ordering::Acquire), 0);
-        for index in 82..=92 {
-            assert_eq!(cache.extended[index].load(Ordering::Acquire), -1);
-        }
-        for index in 97..=103 {
-            assert_eq!(cache.extended[index].load(Ordering::Acquire), -1);
-        }
-    }
 }
