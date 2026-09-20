@@ -2717,10 +2717,12 @@ class _HomePulseHero extends StatelessWidget {
           3 => Icons.local_fire_department_rounded,
           _ => Icons.balance_rounded,
         };
+        final int hwMin = _gpuHardwareMin(backend);
+        final int hwMax = _gpuHardwareMax(backend);
         final String profileDescription = switch (activePerf) {
           2 => 'Efficiency-first clocks and reduced power demand',
-          1 => 'Unrestricted 260–1300 MHz GPU scaling with GED boost',
-          3 => 'GPU locked at the 1300 MHz hardware ceiling',
+          1 => 'Unrestricted $hwMin–$hwMax MHz GPU scaling with GED boost',
+          3 => 'GPU locked at the $hwMax MHz hardware ceiling',
           _ => 'OEM-balanced performance and efficiency for everyday use',
         };
         final int onlineCores = _rodinOnlineCoreCount(snapshot);
@@ -2741,12 +2743,12 @@ class _HomePulseHero extends StatelessWidget {
           3 => '1000 / 500 Hz',
           _ => 'Adaptive',
         };
-        final int liveGpuFreq = backend.extendedValue(46) >= 260
+        final int liveGpuFreq = backend.extendedValue(46) >= hwMin
             ? backend.extendedValue(46)
             : 0;
-        final int maxGpuFreq = backend.extendedValue(48) >= 260
+        final int maxGpuFreq = backend.extendedValue(48) >= hwMin
             ? backend.extendedValue(48)
-            : 1300;
+            : hwMax;
         final String gpu = '${liveGpuFreq > 0 ? liveGpuFreq : maxGpuFreq} MHz';
 
         final Widget hero = Stack(
@@ -3944,6 +3946,21 @@ String _rodinPerformanceLabel(int profile) {
   };
 }
 
+int _gpuHardwareMin(RodinBackend backend) {
+  final int value = backend.extendedValue(81);
+  return value > 0 ? value : 260;
+}
+
+int _gpuHardwareMax(RodinBackend backend) {
+  final int value = backend.extendedValue(82);
+  return value > 0 ? value : 1300;
+}
+
+int _gpuBatteryMax(RodinBackend backend) {
+  final int value = backend.extendedValue(83);
+  return value > 0 ? value : 598;
+}
+
 String _rodinTouchLabel(int profile) {
   return switch (profile) {
     1 => '240 Hz',
@@ -3971,22 +3988,24 @@ class HubsScreen extends StatelessWidget {
         final int liveGpuFreq = backend.extendedValue(46) >= 0
             ? backend.extendedValue(46)
             : 0;
+        final int hwMin = _gpuHardwareMin(backend);
+        final int hwMax = _gpuHardwareMax(backend);
         final int rawMinFreq = backend.extendedValue(47) >= 0
             ? backend.extendedValue(47)
-            : 260;
+            : hwMin;
         final int rawMaxFreq = backend.extendedValue(48) >= 0
             ? backend.extendedValue(48)
-            : 1300;
+            : hwMax;
         final int rawUncap = backend.extendedValue(52);
         final int activePerf = snapshot.performanceProfile >= 0
             ? snapshot.performanceProfile
             : 0;
         final bool isBeast =
-            (rawUncap == 1 && rawMinFreq == 1300 && rawMaxFreq == 1300) ||
+            (rawUncap == 1 && rawMinFreq == hwMax && rawMaxFreq == hwMax) ||
             activePerf == 3;
-        final String gpuLabel = liveGpuFreq >= 260
+        final String gpuLabel = liveGpuFreq >= hwMin
             ? '$liveGpuFreq MHz'
-            : (isBeast ? '1300 MHz' : '$rawMaxFreq MHz');
+            : (isBeast ? '$hwMax MHz' : '$rawMaxFreq MHz');
         final String displayMode = switch (snapshot.displayColor) {
           0 => 'Original PRO',
           1 => 'Vivid',
@@ -4799,7 +4818,7 @@ class SupportScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Engineered exclusively for Dimensity 8400-Ultra (MT6899 / rodin)',
+                        'Adapted for Dimensity 8300-Ultra (MT6897 / duchamp)',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -5430,6 +5449,9 @@ class _ChargingModeCard extends StatelessWidget {
   String _detail() {
     if (!snapshot.ready) {
       return 'Privileged charging backend unavailable';
+    }
+    if (snapshot.chargingMode < 0) {
+      return 'Charging boost is not exposed by this kernel';
     }
 
     switch (snapshot.chargingWriteState) {
@@ -6767,7 +6789,7 @@ class _CpuControlScreenState extends State<CpuControlScreen> {
                                     fit: BoxFit.scaleDown,
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'Dimensity 8400-Ultra CPU',
+                                      'Dimensity 8300-Ultra CPU',
                                       style: TextStyle(
                                         fontSize: 14.5,
                                         fontWeight: FontWeight.w800,
@@ -10684,12 +10706,13 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
 
   void _resetDefault() {
     RodinHaptics.confirm();
+    final RodinBackend backend = RodinBackend.instance;
     setState(() {
       _optimisticProfile = 0;
       _optimisticUncap = false;
-      _optimisticMinFreq = 260;
-      _optimisticMaxFreq = 1300;
-      _optimisticGov = 4;
+      _optimisticMinFreq = _gpuHardwareMin(backend);
+      _optimisticMaxFreq = _gpuHardwareMax(backend);
+      _optimisticGov = _gpuHardwareMax(backend) >= 1400 ? 0 : 4;
       _optimisticGedBoost = false;
       _optimisticPowerPolicy = 0;
     });
@@ -10734,12 +10757,18 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
         final int liveCurFreq = backend.extendedValue(46) >= 0
             ? backend.extendedValue(46)
             : 0;
+        final int hwMin = _gpuHardwareMin(backend);
+        final int hwMax = _gpuHardwareMax(backend);
+        final int batteryMax = _gpuBatteryMax(backend);
+        final int oppCount = backend.extendedValue(84) > 0
+            ? backend.extendedValue(84)
+            : 0;
         final int rawMinFreq = backend.extendedValue(47) >= 0
             ? backend.extendedValue(47)
-            : 260;
+            : hwMin;
         final int rawMaxFreq = backend.extendedValue(48) >= 0
             ? backend.extendedValue(48)
-            : 1300;
+            : hwMax;
         final int rawGovCode = backend.extendedValue(49) >= 0
             ? backend.extendedValue(49)
             : 0;
@@ -10766,23 +10795,23 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 ? snapshot.performanceProfile
                 : 0);
         final int requestedMaxFreq = switch (activePerf) {
-          3 => 1300,
-          1 => 1300,
-          2 => 598,
+          3 => hwMax,
+          1 => hwMax,
+          2 => batteryMax,
           _ => rawMaxFreq,
         };
         final bool hasHardwareReadback = _optimisticProfile == null;
         final bool isThrottledByOs =
             hasHardwareReadback &&
             ((activePerf == 3 &&
-                    ((liveCurFreq > 0 && liveCurFreq < 1300) ||
+                    ((liveCurFreq > 0 && liveCurFreq < hwMax) ||
                         rawMaxFreq < requestedMaxFreq)) ||
                 ((activePerf == 1 || activePerf == 2) &&
                     rawMaxFreq < requestedMaxFreq));
         final bool isBeast =
             activePerf == 3 ||
             isUncapped ||
-            (activeMinFreq == 1300 && activeMaxFreq == 1300);
+            (activeMinFreq == hwMax && activeMaxFreq == hwMax);
         final bool isGaming = !isBeast && activePerf == 1;
         final bool isBattery = !isBeast && activePerf == 2;
         final Color mainColor = isBeast
@@ -10801,16 +10830,16 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                         : Icons.balance_rounded));
         final String modeSummary = isBeast
             ? (liveCurFreq > 0
-                  ? 'Live: $liveCurFreq MHz · Fixed at 1.30 GHz'
-                  : 'Applying fixed 1.30 GHz lock')
+                  ? 'Live: $liveCurFreq MHz · Fixed at $hwMax MHz'
+                  : 'Applying fixed $hwMax MHz lock')
             : (isGaming
                   ? (liveCurFreq > 0
-                        ? 'Live: $liveCurFreq MHz · Scaling freely to 1.30 GHz'
-                        : 'Full-range scaling · 260–1300 MHz')
+                        ? 'Live: $liveCurFreq MHz · Scaling freely to $hwMax MHz'
+                        : 'Full-range scaling · $hwMin–$hwMax MHz')
                   : (isBattery
                         ? (liveCurFreq > 0
-                              ? 'Live: $liveCurFreq MHz · Efficiency cap at 598 MHz'
-                              : 'Efficiency range · 260–598 MHz')
+                              ? 'Live: $liveCurFreq MHz · Efficiency cap at $batteryMax MHz'
+                              : 'Efficiency range · $hwMin–$batteryMax MHz')
                         : (liveCurFreq > 0
                               ? 'Live: $liveCurFreq MHz · OEM-managed behavior'
                               : 'Vendor-managed clocks and power policy')));
@@ -10851,7 +10880,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 HeroCard(
                   icon: modeIcon,
                   accent: mainColor,
-                  title: 'Mali-G720 Graphics',
+                  title: 'Mali-G615 Graphics',
                   subtitle: modeSummary,
                 ),
                 const SizedBox(height: 12),
@@ -10868,6 +10897,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                   isUncapped: isUncapped,
                   isThrottledByOs: isThrottledByOs,
                   profileVerified: profileVerified,
+                  hardwareMax: hwMax,
                 ),
                 const SizedBox(height: 12),
 
@@ -10879,6 +10909,9 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                   minFreq: activeMinFreq,
                   maxFreq: activeMaxFreq,
                   isUncapped: isUncapped,
+                  hardwareMin: hwMin,
+                  hardwareMax: hwMax,
+                  batteryMax: batteryMax,
                   onSelect: _applyPreset,
                 ),
                 const SizedBox(height: 12),
@@ -10901,6 +10934,9 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                   isDark: isDark,
                   colors: colors,
                   thermalState: thermalState,
+                  hardwareMin: hwMin,
+                  hardwareMax: hwMax,
+                  oppCount: oppCount,
                 ),
               ],
             ),
@@ -10931,11 +10967,12 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
     required bool isUncapped,
     required bool isThrottledByOs,
     required bool profileVerified,
+    required int hardwareMax,
   }) {
     final bool isBeast =
         activeProfile == 3 ||
         isUncapped ||
-        (minFreq == 1300 && maxFreq == 1300);
+        (minFreq == hardwareMax && maxFreq == hardwareMax);
     final bool isGaming = !isBeast && activeProfile == 1;
     final bool isBattery = !isBeast && activeProfile == 2;
 
@@ -10951,14 +10988,14 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
 
     final String clockSubtext = isBeast
         ? (isThrottledByOs
-              ? 'External clock limit detected · 1300 MHz remains the target'
-              : (profileVerified && liveCurFreq == 1300
-                    ? 'Fixed 1.30 GHz target verified from live hardware telemetry'
-                    : 'Fixed 1.30 GHz target requested · waiting for live verification'))
+              ? 'External clock limit detected · $hardwareMax MHz remains the target'
+              : (profileVerified && liveCurFreq == hardwareMax
+                    ? 'Fixed $hardwareMax MHz target verified from live hardware telemetry'
+                    : 'Fixed $hardwareMax MHz target requested · waiting for live verification'))
         : (isGaming
               ? (liveCurFreq > 0
-                    ? 'Dynamic Gaming Load ($liveCurFreq MHz · 1.30 GHz Ceiling)'
-                    : 'Standby Dynamic (260 – 1300 MHz · GED Boost Active)')
+                    ? 'Dynamic Gaming Load ($liveCurFreq MHz · $hardwareMax MHz Ceiling)'
+                    : 'Standby Dynamic (full range · GED Boost Active)')
               : (isBattery
                     ? (liveCurFreq > 0
                           ? 'Live $liveCurFreq MHz · $minFreq–$maxFreq MHz Battery Range'
@@ -10968,7 +11005,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                           : 'Waiting for OEM GPU telemetry')));
 
     final String badgeTitle = isBeast
-        ? '1.30 GHz FIXED TARGET'
+        ? '$hardwareMax MHz FIXED TARGET'
         : (isGaming
               ? 'GAMING DYNAMIC BOOST'
               : (isBattery ? 'BATTERY SAVER CLAMP' : 'DYNAMIC BALANCED'));
@@ -11012,7 +11049,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                       ),
                     ),
                     Text(
-                      'Dimensity 8400-Ultra · Mali-G720 7-Core',
+                      'Dimensity 8300-Ultra · Mali-G615 MC6',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: colors.onSurfaceVariant,
@@ -11021,7 +11058,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                   ],
                 ),
               ),
-              if (maxFreq >= 1300)
+              if (maxFreq >= hardwareMax)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -11034,8 +11071,8 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                       color: const Color(0xFFFF5252).withValues(alpha: 0.3),
                     ),
                   ),
-                  child: const Text(
-                    '1.30 GHz Target',
+                  child: Text(
+                    '$hardwareMax MHz Target',
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
@@ -11225,6 +11262,9 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
     required int minFreq,
     required int maxFreq,
     required bool isUncapped,
+    required int hardwareMin,
+    required int hardwareMax,
+    required int batteryMax,
     required Function(
       int profile,
       int min,
@@ -11240,7 +11280,10 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
   }) {
     final bool isBeast =
         activeProfile == 3 ||
-        (activeProfile < 0 && isUncapped && minFreq == 1300 && maxFreq == 1300);
+        (activeProfile < 0 &&
+            isUncapped &&
+            minFreq == hardwareMax &&
+            maxFreq == hardwareMax);
     final bool isGaming = activeProfile == 1;
     final bool isBattery = activeProfile == 2;
     final bool isStock = !isBeast && !isGaming && !isBattery;
@@ -11265,18 +11308,18 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Extreme Beast',
-                range: '1300 MHz fixed · No downclock',
+                range: '$hardwareMax MHz fixed · No downclock',
                 icon: Icons.bolt_rounded,
                 accent: const Color(0xFFFF5252),
                 isActive: isBeast,
                 onTap: () => onSelect(
                   3,
-                  1300,
-                  1300,
+                  hardwareMax,
+                  hardwareMax,
                   1,
                   true,
                   1,
-                  'Extreme Beast · Fixed 1.30 GHz',
+                  'Extreme Beast · Fixed $hardwareMax MHz',
                   Icons.bolt_rounded,
                   const Color(0xFFFF5252),
                 ),
@@ -11288,14 +11331,14 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Gaming Dynamic',
-                range: '260–1300 MHz · Full-range scaling',
+                range: '$hardwareMin–$hardwareMax MHz · Full-range scaling',
                 icon: Icons.sports_esports_rounded,
                 accent: const Color(0xFFFFB84D),
                 isActive: isGaming,
                 onTap: () => onSelect(
                   1,
-                  260,
-                  1300,
+                  hardwareMin,
+                  hardwareMax,
                   0,
                   true,
                   1,
@@ -11321,9 +11364,9 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isActive: isStock,
                 onTap: () => onSelect(
                   0,
-                  260,
-                  1300,
-                  4,
+                  hardwareMin,
+                  hardwareMax,
+                  hardwareMax >= 1400 ? 0 : 4,
                   false,
                   0,
                   'Stock Balanced · OEM Control',
@@ -11338,18 +11381,18 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Battery Saver',
-                range: '260–598 MHz · Efficiency cap',
+                range: '$hardwareMin–$batteryMax MHz · Efficiency cap',
                 icon: Icons.energy_savings_leaf_rounded,
                 accent: const Color(0xFF41C98A),
                 isActive: isBattery,
                 onTap: () => onSelect(
                   2,
-                  260,
-                  598,
+                  hardwareMin,
+                  batteryMax,
                   2,
                   false,
                   0,
-                  'Battery Saver · 598 MHz Cap',
+                  'Battery Saver · $batteryMax MHz Cap',
                   Icons.energy_savings_leaf_rounded,
                   const Color(0xFF41C98A),
                 ),
@@ -11860,6 +11903,9 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
     required bool isDark,
     required ColorScheme colors,
     required int thermalState,
+    required int hardwareMin,
+    required int hardwareMax,
+    required int oppCount,
   }) {
     return SurfaceCard(
       child: Column(
@@ -11887,17 +11933,17 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
           _buildDetailRow(
             colors,
             'GPU Architecture',
-            'Mali-G720 7-Core r0p1 (0x0C080700)',
+            'Mali-G615 MC6 · MediaTek MT6897',
           ),
           _buildDetailRow(
             colors,
             'Active Core Mask',
-            '0x150055 (All 7 execution clusters active)',
+            '6 execution cores',
           ),
           _buildDetailRow(
             colors,
             'Thermal Cooling Node',
-            '/sys/class/thermal/cooling_device3',
+            'Auto-detected by devfreq Mali type',
           ),
           _buildDetailRow(
             colors,
@@ -11905,7 +11951,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
             thermalState < 0
                 ? 'Unavailable'
                 : (thermalState == 0
-                      ? '0 (Rodin unrestricted override)'
+                      ? '0 (GPU cooling cap cleared)'
                       : '$thermalState (vendor managed)'),
           ),
           _buildDetailRow(
@@ -11916,7 +11962,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
           _buildDetailRow(
             colors,
             'Hardware Frequencies',
-            '41 Clock Steps (260 MHz → 1.30 GHz)',
+            '${oppCount > 0 ? oppCount : 'Live'} Clock Steps ($hardwareMin → $hardwareMax MHz)',
           ),
         ],
       ),

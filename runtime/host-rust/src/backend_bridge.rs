@@ -745,6 +745,10 @@ fn refresh(cache: &Cache) -> Result<(), String> {
         ("display_native_density", 78),
         ("touch_resampler_path", 79),
         ("touch_resampler_error", 80),
+        ("gpu_hw_min", 81),
+        ("gpu_hw_max", 82),
+        ("gpu_battery_max", 83),
+        ("gpu_opp_count", 84),
     ];
 
     for &(key, index) in extended_fields {
@@ -917,7 +921,9 @@ fn perform(command: Command) -> Result<(), String> {
                     if let Some(r) = runtime() {
                         r.cache.extended[52].store(a, Ordering::Release);
                         if a == 1 {
-                            r.cache.extended[48].store(1300, Ordering::Release);
+                            let hw_max = r.cache.extended[82].load(Ordering::Acquire);
+                            r.cache.extended[48]
+                                .store(if hw_max > 0 { hw_max } else { 1300 }, Ordering::Release);
                             r.cache.extended[51].store(0, Ordering::Release);
                         }
                     }
@@ -1628,35 +1634,47 @@ pub extern "C" fn rodin_backend_get_performance_profile() -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn rodin_backend_set_performance_profile(v: i32) -> i32 {
     if let Some(r) = runtime() {
+        let hw_min = match r.cache.extended[81].load(Ordering::Acquire) {
+            value if value > 0 => value,
+            _ => 260,
+        };
+        let hw_max = match r.cache.extended[82].load(Ordering::Acquire) {
+            value if value > 0 => value,
+            _ => 1300,
+        };
+        let battery_max = match r.cache.extended[83].load(Ordering::Acquire) {
+            value if value > 0 => value,
+            _ => 598,
+        };
         r.cache.performance.store(v, Ordering::Release);
         match v {
             3 => {
-                r.cache.extended[47].store(1300, Ordering::Release); // min_freq
-                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
+                r.cache.extended[47].store(hw_max, Ordering::Release); // min_freq
+                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
                 r.cache.extended[49].store(1, Ordering::Release); // gov = performance
                 r.cache.extended[50].store(1, Ordering::Release); // ged_boost = 1
                 r.cache.extended[52].store(1, Ordering::Release); // uncap = 1
                 r.cache.extended[59].store(1, Ordering::Release); // power_policy = always_on
             }
             1 => {
-                r.cache.extended[47].store(260, Ordering::Release); // min_freq
-                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
+                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
+                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
                 r.cache.extended[49].store(0, Ordering::Release); // gov = simple_ondemand
                 r.cache.extended[50].store(1, Ordering::Release); // ged_boost = 1
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0
                 r.cache.extended[59].store(1, Ordering::Release); // power_policy = always_on
             }
             2 => {
-                r.cache.extended[47].store(260, Ordering::Release); // min_freq
-                r.cache.extended[48].store(598, Ordering::Release); // max_freq
+                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
+                r.cache.extended[48].store(battery_max, Ordering::Release); // max_freq
                 r.cache.extended[49].store(2, Ordering::Release); // gov = powersave
                 r.cache.extended[50].store(0, Ordering::Release); // ged_boost = 0
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0
                 r.cache.extended[59].store(0, Ordering::Release); // power_policy = coarse_demand
             }
             _ => {
-                r.cache.extended[47].store(260, Ordering::Release); // min_freq
-                r.cache.extended[48].store(1300, Ordering::Release); // max_freq
+                r.cache.extended[47].store(hw_min, Ordering::Release); // min_freq
+                r.cache.extended[48].store(hw_max, Ordering::Release); // max_freq
                 r.cache.extended[49].store(4, Ordering::Release); // gov = OEM dummy
                 r.cache.extended[50].store(0, Ordering::Release); // GED boost = off
                 r.cache.extended[52].store(0, Ordering::Release); // uncap = 0

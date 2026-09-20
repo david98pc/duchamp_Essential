@@ -35,6 +35,18 @@ runtime/flutter-engine/prebuilt/android-arm64/libflutter_engine.so
 runtime/flutter-engine/prebuilt/android-arm64/icudtl.dat
 ```
 
+For CI or machines that do not modify Flutter itself, use the official
+prebuilt ARM64 embedder matching the active Flutter SDK instead of checking out
+the complete engine source tree:
+
+```bash
+flutter precache --android
+./tools/install-flutter-engine-prebuilt.sh
+```
+
+Both engine installation paths write an `engine.version` stamp. Application
+builds reject a runtime whose stamp differs from the active Flutter SDK.
+
 ## Build the application and daemon
 
 ```bash
@@ -53,6 +65,28 @@ apk-files.txt
 Without `RODIN_BUILD_ONLY=1`, the script installs the APK on the connected
 device and updates the development root-module backend. ROM release automation
 should always use build-only mode or `tools/export-aosp-bundle.sh`.
+
+## GitHub Actions
+
+`.github/workflows/build-mt6897.yml` builds only the MT6897 application and its
+native runtime. It deliberately does not build a Magisk or KernelSU installer.
+The workflow pins Flutter, installs Android platform 36/build-tools/NDK and the
+Rust ARM64 target, downloads the matching official Flutter embedder, runs the
+zero-DEX and 16 KB verification, and uploads these artifacts:
+
+```text
+Rodin-Essential.apk
+rodin_daemon
+rodin_ctl
+apk-files.txt
+SHA256SUMS
+```
+
+Manual and branch builds use a disposable development certificate unless these
+repository secrets are configured: `RODIN_KEYSTORE_B64`, `RODIN_KEY_ALIAS`,
+`RODIN_KEYSTORE_PASS`, and `RODIN_KEY_PASS`. `RODIN_KEYSTORE_B64` is the base64
+encoding of the complete JKS file. Reuse the same protected signing key for
+update-compatible APKs; never commit it to the repository.
 
 ## Signing
 

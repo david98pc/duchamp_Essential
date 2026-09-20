@@ -64,6 +64,7 @@ install -m 0644 "$RODIN_ENGINE_OUT/icudtl.dat" "$RODIN_PREBUILT/icudtl.dat"
 install -m 0644 \
     "$RODIN_ENGINE_SRC/flutter/shell/platform/embedder/embedder.h" \
     "$RODIN_ROOT/runtime/flutter-engine/include/embedder.h"
+printf '%s\n' "$RODIN_EXPECTED_REVISION" >"$RODIN_PREBUILT/engine.version"
 
 echo "FLUTTER_ENGINE_BUILD=PASS"
 echo "ENGINE_REVISION=$RODIN_EXPECTED_REVISION"

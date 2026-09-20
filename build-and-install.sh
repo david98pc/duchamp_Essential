@@ -48,9 +48,9 @@ echo "===== 2. BUILD FLUTTER AOT RELEASE BUNDLE ====="
 
 echo
 echo "===== 3. DETECT TOOLCHAINS ====="
-BUILD_TOOLS="$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)"
-PLATFORM="$(find "$SDK/platforms" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sed -nE 's/^android-([0-9]+)$/\1/p' | sort -n | tail -1)"
-NDK_VER="$(find "$SDK/ndk" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)"
+BUILD_TOOLS="${RODIN_BUILD_TOOLS_VERSION:-$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)}"
+PLATFORM="${RODIN_PLATFORM_VERSION:-$(find "$SDK/platforms" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sed -nE 's/^android-([0-9]+)$/\1/p' | sort -n | tail -1)}"
+NDK_VER="${RODIN_NDK_VERSION:-$(find "$SDK/ndk" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)}"
 
 NDK="$SDK/ndk/$NDK_VER"
 LINKER="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang"
@@ -60,6 +60,7 @@ APKSIGNER="$SDK/build-tools/$BUILD_TOOLS/apksigner"
 ANDROID_JAR="$SDK/platforms/android-$PLATFORM/android.jar"
 ENGINE_PREBUILT="$ROOT/runtime/flutter-engine/prebuilt/android-arm64"
 ICU="$ENGINE_PREBUILT/icudtl.dat"
+ENGINE_STAMP="$ENGINE_PREBUILT/engine.version"
 
 for RODIN_TOOL in flutter cargo python3 keytool readelf sha256sum unzip zip; do
     command -v "$RODIN_TOOL" >/dev/null 2>&1 || {
@@ -69,16 +70,29 @@ for RODIN_TOOL in flutter cargo python3 keytool readelf sha256sum unzip zip; do
 done
 
 for RODIN_FILE in "$LINKER" "$AAPT2" "$ZIPALIGN" "$APKSIGNER" "$ANDROID_JAR" \
-    "$ENGINE_PREBUILT/libflutter_engine.so" "$ICU"; do
+    "$ENGINE_PREBUILT/libflutter_engine.so" "$ICU" "$ENGINE_STAMP"; do
     [ -f "$RODIN_FILE" ] || {
         echo "Missing build dependency: $RODIN_FILE" >&2
         exit 1
     }
 done
 
+FLUTTER_BIN="$(readlink -f "$(command -v flutter)")"
+FLUTTER_ROOT="$(cd "$(dirname "$FLUTTER_BIN")/.." && pwd)"
+EXPECTED_ENGINE_REVISION="$(tr -d '[:space:]' <"$FLUTTER_ROOT/bin/internal/engine.version")"
+INSTALLED_ENGINE_REVISION="$(tr -d '[:space:]' <"$ENGINE_STAMP")"
+
+if [ "$INSTALLED_ENGINE_REVISION" != "$EXPECTED_ENGINE_REVISION" ]; then
+    echo "Flutter SDK and packaged engine revisions do not match" >&2
+    echo "Flutter SDK engine: $EXPECTED_ENGINE_REVISION" >&2
+    echo "Packaged engine:    $INSTALLED_ENGINE_REVISION" >&2
+    exit 1
+fi
+
 echo "BUILD_TOOLS=$BUILD_TOOLS"
 echo "PLATFORM=android-$PLATFORM"
 echo "NDK=$NDK_VER"
+echo "FLUTTER_ENGINE=$INSTALLED_ENGINE_REVISION"
 
 echo
 echo "===== 4. BUILD HOST & DAEMON RUST RUNTIME ====="

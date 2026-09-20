@@ -1,9 +1,15 @@
-# Rodin Essential
+# Duchamp Essential
 
-Rodin Essential is a native hardware-control application for Xiaomi Rodin
-(POCO X7 Pro / Redmi Turbo 4) and its MediaTek Dimensity 8400-Ultra platform.
+This branch adapts Rodin Essential's native hardware-control application for
+Xiaomi Duchamp and its MediaTek Dimensity 8300-Ultra platform.
 It combines a zero-DEX Android `NativeActivity`, a Flutter AOT interface, a
 Rust host runtime, and a separately privileged Rust daemon.
+
+## Origin and credits
+
+**Duchamp Essential is a device adaptation of [Rodin Essential](https://github.com/NEESCHAL-3/Rodin-Essential), originally created and maintained by [NEESCHAL-3](https://github.com/NEESCHAL-3).** The application architecture, interface, and substantial portions of the implementation originate from that project. This repository adds the MT6897 / Xiaomi Duchamp device port and its related build changes; it does not claim authorship of the original work.
+
+The original in-app developer credit and links to NEESCHAL-3 are intentionally preserved.
 
 The APK never runs as root, does not use the system UID, and does not request
 privileged Android permissions. Kernel and vendor controls are owned by the
@@ -12,17 +18,19 @@ installed application UID.
 
 ## Supported target
 
-- Device codename: `rodin`
-- SoC: MediaTek MT6899 / Dimensity 8400-Ultra
-- CPU: 8× Cortex-A725 (4+3+1 policies), up to 3.25 GHz
-- GPU: Mali-G720, 7 cores, up to 1300 MHz
+- Device codename: `duchamp`
+- SoC: MediaTek MT6897 / Dimensity 8300-Ultra
+- CPU policies: `policy0` (4 cores, 480–2200 MHz), `policy4` (3 cores,
+  400–3200 MHz), and `policy7` (1 core, 400–3350 MHz)
+- GPU: Mali-G615 MC6 with a live 65-step 265–1400 MHz OPP table
 - ABI: ARM64
 - Android: API 31 or newer
 - Kernel userspace: 16 KB page-compatible native binaries
 - Vendor dependencies: Rodin touch and display AIDL services plus MediaTek GED
 
-This is device-specific software. Other devices are rejected by the root-module
-installer and are not supported by the included AOSP policy.
+The daemon now derives GPU limits and GED OPP indices from the live kernel table
+and discovers the Mali cooling device by type. The original installer and AOSP
+policy remain upstream Rodin assets and are intentionally outside this port.
 
 ## Main features
 
@@ -95,10 +103,10 @@ focused panels for each subsystem.
 
 | Profile | GPU range and governor | GED / power policy | CPU behavior |
 | --- | --- | --- | --- |
-| Stock Balanced | Vendor-managed 260–1300 MHz, `dummy` | GED off, `coarse_demand` | Unchanged; controlled separately |
-| Gaming Dynamic | 260–1300 MHz, `simple_ondemand` | GED on, `always_on` | Unchanged; controlled separately |
-| Battery Saver | 260–598 MHz, `powersave` | GED off, `coarse_demand` | Unchanged; controlled separately |
-| Extreme Beast | Fixed 1300 MHz, `performance`, DVFS off | GED on, `always_on` | Unchanged; controlled separately |
+| Stock Balanced | Live hardware range, `simple_ondemand` | GED off, `coarse_demand` | Unchanged; controlled separately |
+| Gaming Dynamic | 265–1400 MHz, `simple_ondemand` | GED on, `always_on` | Unchanged; controlled separately |
+| Battery Saver | 265–601 MHz, `powersave` | GED off, `coarse_demand` | Unchanged; controlled separately |
+| Extreme Beast | Fixed 1400 MHz, `performance`, DVFS off | GED on, `always_on` | Unchanged; controlled separately |
 
 GPU profiles never modify CPU governors, CPU clock ranges, or CPU core state.
 Vendor CPU and platform thermal services remain running in every mode. Gaming
