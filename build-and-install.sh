@@ -89,10 +89,24 @@ if [ "$INSTALLED_ENGINE_REVISION" != "$EXPECTED_ENGINE_REVISION" ]; then
     exit 1
 fi
 
+ENGINE_SIZE="$(stat -c '%s' "$ENGINE_PREBUILT/libflutter_engine.so")"
+if [ "$ENGINE_SIZE" -gt 134217728 ]; then
+    echo "Flutter engine is too large for a release build: $ENGINE_SIZE bytes" >&2
+    echo "A debug embedder was probably supplied; build android_release_arm64 instead." >&2
+    exit 1
+fi
+
+readelf -Ws "$ENGINE_PREBUILT/libflutter_engine.so" \
+    | grep -q 'FlutterEngineRunsAOTCompiledDartCode' || {
+        echo "Flutter embedder API is missing from libflutter_engine.so" >&2
+        exit 1
+    }
+
 echo "BUILD_TOOLS=$BUILD_TOOLS"
 echo "PLATFORM=android-$PLATFORM"
 echo "NDK=$NDK_VER"
 echo "FLUTTER_ENGINE=$INSTALLED_ENGINE_REVISION"
+echo "FLUTTER_ENGINE_SIZE=$ENGINE_SIZE"
 
 echo
 echo "===== 4. BUILD HOST & DAEMON RUST RUNTIME ====="

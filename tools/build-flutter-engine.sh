@@ -60,12 +60,31 @@ done
 
 mkdir -p "$RODIN_PREBUILT" "$RODIN_ROOT/runtime/flutter-engine/include"
 install -m 0644 "$RODIN_ENGINE_OUT/libflutter_engine.so" "$RODIN_PREBUILT/libflutter_engine.so"
+RODIN_STRIP="$RODIN_ENGINE_SRC/flutter/buildtools/linux-x64/clang/bin/llvm-strip"
+[ -x "$RODIN_STRIP" ] || {
+    echo "Missing Flutter LLVM strip tool: $RODIN_STRIP" >&2
+    exit 1
+}
+"$RODIN_STRIP" --strip-unneeded "$RODIN_PREBUILT/libflutter_engine.so"
 install -m 0644 "$RODIN_ENGINE_OUT/icudtl.dat" "$RODIN_PREBUILT/icudtl.dat"
 install -m 0644 \
     "$RODIN_ENGINE_SRC/flutter/shell/platform/embedder/embedder.h" \
     "$RODIN_ROOT/runtime/flutter-engine/include/embedder.h"
 printf '%s\n' "$RODIN_EXPECTED_REVISION" >"$RODIN_PREBUILT/engine.version"
 
+RODIN_ENGINE_SIZE="$(stat -c '%s' "$RODIN_PREBUILT/libflutter_engine.so")"
+if [ "$RODIN_ENGINE_SIZE" -gt 134217728 ]; then
+    echo "Release Flutter embedder is unexpectedly large: $RODIN_ENGINE_SIZE bytes" >&2
+    exit 1
+fi
+
+readelf -Ws "$RODIN_PREBUILT/libflutter_engine.so" \
+    | grep -q 'FlutterEngineRunsAOTCompiledDartCode' || {
+        echo "Flutter embedder API is missing from the release engine" >&2
+        exit 1
+    }
+
 echo "FLUTTER_ENGINE_BUILD=PASS"
 echo "ENGINE_REVISION=$RODIN_EXPECTED_REVISION"
+echo "ENGINE_SIZE=$RODIN_ENGINE_SIZE"
 echo "PREBUILT_DIR=$RODIN_PREBUILT"
