@@ -133,6 +133,7 @@ jobs:
             PATH="$DEPOT_TOOLS:$PATH" gclient sync --no-history
           )
 
+          echo "$DEPOT_TOOLS" >> "$GITHUB_PATH"
           echo "RODIN_FLUTTER_ENGINE_SRC=$ENGINE_CHECKOUT/engine/src" >> "$GITHUB_ENV"
           df -h /
 
