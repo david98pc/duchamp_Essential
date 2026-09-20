@@ -14,9 +14,24 @@ part 'system_colors.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  RodinBackend.instance.start();
+  runApp(const _RodinLaunchFrame());
+
   unawaited(RodinThemeController.bootstrap());
-  runApp(const RodinEssentialApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Native startup is already connecting asynchronously. Read that cache
+    // before building the dashboard, without delaying the initial white frame.
+    RodinBackend.instance.start();
+    runApp(const RodinEssentialApp());
+  });
+}
+
+class _RodinLaunchFrame extends StatelessWidget {
+  const _RodinLaunchFrame();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(color: Colors.white);
+  }
 }
 
 enum RodinScreen {
