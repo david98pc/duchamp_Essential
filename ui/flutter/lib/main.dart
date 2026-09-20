@@ -49,7 +49,7 @@ extension RodinScreenName on RodinScreen {
   String get title {
     switch (this) {
       case RodinScreen.home:
-        return 'Rodin Essential';
+        return 'Duchamp Essential';
       case RodinScreen.hubs:
         return 'Control Hubs';
       case RodinScreen.support:
@@ -165,7 +165,7 @@ class RodinEssentialApp extends StatelessWidget {
       valueListenable: RodinThemeController.mode,
       builder: (BuildContext context, ThemeMode themeMode, Widget? child) {
         return MaterialApp(
-          title: 'Rodin Essential',
+          title: 'Duchamp Essential',
           debugShowCheckedModeBanner: false,
           themeMode: themeMode,
           theme: _theme(
@@ -1307,7 +1307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _choosingPhoto = false;
         _photoMessage =
             'Photo access was not granted. '
-            'Rodin Essential keeps working '
+            'Duchamp Essential keeps working '
             'normally without it.';
       });
 
@@ -1462,7 +1462,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         const Text(
-                          'Rodin Custom Surface',
+                          'Duchamp Custom Surface',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -1818,7 +1818,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Use Android automatically or force Rodin Essential to Light or pure AMOLED Black.',
+                'Use Android automatically or force Duchamp Essential to Light or pure AMOLED Black.',
                 style: TextStyle(
                   fontSize: 11.5,
                   color: colors.onSurfaceVariant,
@@ -2241,7 +2241,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'The selected image is copied into Rodin Essential private storage so it remains usable after photo permission changes.',
+                    'The selected image is copied into Duchamp Essential private storage so it remains usable after photo permission changes.',
                     style: TextStyle(
                       fontSize: 11.5,
                       height: 1.32,
@@ -2624,7 +2624,7 @@ class HomeScreen extends StatelessWidget {
     return RodinScrollPage(
       children: <Widget>[
         const RodinHeader(
-          title: 'Rodin Essential',
+          title: 'Duchamp Essential',
           subtitle: 'Your device, beautifully simplified',
           large: true,
         ),
@@ -2768,7 +2768,7 @@ class _DisclaimerCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Rodin Essential provides direct kernel hardware tuning, MediaTek Mali GPU frequency locks, independent CPU frequency and topology control, and AIDL display calibrations via native ROM system interfaces. GPU modes never change CPU settings. Gaming Dynamic and Extreme Beast intentionally override only the vendor GPU cooling cap; sustained high clocks can cause severe heat, battery drain, instability, or hardware damage.',
+            'Duchamp Essential provides direct kernel hardware tuning, MediaTek Mali GPU frequency locks, independent CPU frequency and topology control, and AIDL display calibrations via native ROM system interfaces. GPU modes never change CPU settings. Gaming Dynamic and Extreme Beast intentionally override only the vendor GPU cooling cap; sustained high clocks can cause severe heat, battery drain, instability, or hardware damage.',
             style: TextStyle(
               fontSize: 11.2,
               height: 1.45,
@@ -3270,7 +3270,7 @@ class HubsScreen extends StatelessWidget {
     _HubSpec(
       RodinScreen.maliGpu,
       'MediaTek Mali GPU & GED',
-      'Hardware 1.30 GHz target, GED turbo & live clock tuning',
+      'Hardware 1.40 GHz target, GED turbo & live clock tuning',
       Icons.sports_esports_rounded,
       Color(0xFFFF5252),
     ),
@@ -3298,21 +3298,21 @@ class HubsScreen extends StatelessWidget {
             : 0;
         final int rawMinFreq = backend.extendedValue(47) >= 0
             ? backend.extendedValue(47)
-            : 260;
+            : 265;
         final int rawMaxFreq = backend.extendedValue(48) >= 0
             ? backend.extendedValue(48)
-            : 1300;
+            : 1400;
         final int rawUncap = backend.extendedValue(52);
         final int activePerf = snapshot.performanceProfile >= 0
             ? snapshot.performanceProfile
             : 0;
 
         final bool isBeast =
-            (rawUncap == 1 && rawMinFreq == 1300 && rawMaxFreq == 1300) ||
+            (rawUncap == 1 && rawMinFreq == 1400 && rawMaxFreq == 1400) ||
             activePerf == 3;
-        final String gpuLabel = liveGpuFreq >= 260
+        final String gpuLabel = liveGpuFreq >= 265
             ? '$liveGpuFreq MHz'
-            : (isBeast ? '1300 MHz target' : '$rawMaxFreq MHz');
+            : (isBeast ? '1400 MHz target' : '$rawMaxFreq MHz');
 
         final Color gpuAccent = isBeast
             ? const Color(0xFFFF5252)
@@ -3409,7 +3409,7 @@ class SupportScreen extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             const Text(
-                              'Rodin Essential',
+                              'Duchamp Essential',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -3513,7 +3513,7 @@ class SupportScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Engineered exclusively for Dimensity 8400-Ultra (MT6899 / rodin)',
+                        'Engineered exclusively for Dimensity 8300-Ultra (MT6897 / duchamp)',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -3592,7 +3592,7 @@ class SupportScreen extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Built-in System Component for Rodin ROMs • Zero Telemetry',
+                'Built-in System Component for Duchamp ROMs • Zero Telemetry',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
@@ -3801,7 +3801,7 @@ class _ChargingScreenState extends State<ChargingScreen> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Fast charging controls and live power status',
+                  'Live charging and battery status',
                   style: TextStyle(
                     fontSize: 13.5,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -3810,7 +3810,16 @@ class _ChargingScreenState extends State<ChargingScreen> {
                 const SizedBox(height: 10),
                 _ChargingBatteryCard(snapshot: snapshot),
                 const SizedBox(height: 9),
-                _ChargingModeCard(snapshot: snapshot),
+                if (snapshot.chargingMode >= 0)
+                  _ChargingModeCard(snapshot: snapshot)
+                else
+                  const SurfaceCard(
+                    child: _InfoBlock(
+                      title: 'Charging control unavailable',
+                      text:
+                          'Duchamp does not expose the writable charging-mode node used by Rodin. Battery telemetry remains available, but no unsupported boost is presented as functional.',
+                    ),
+                  ),
               ],
             );
           },
@@ -4386,18 +4395,17 @@ class _TouchBoostScreenState extends State<TouchBoostScreen> {
         final String panel = switch (panelCode) {
           1 => 'Goodix GT9916',
           2 => 'FocalTech',
-          _ => 'Rodin auto-detect',
+          _ => 'Duchamp auto-detect',
         };
         final String engine = switch (controlPath) {
           1 => 'Vendor HAL',
           2 => 'Direct driver fallback',
-          3 => 'Rodin 1 ms output scheduler',
+          3 => 'Duchamp 1 ms output scheduler',
           _ => snapshot.touchHal == 1 ? 'Vendor HAL ready' : 'Unavailable',
         };
         final bool applying =
             _pendingProfile != null && snapshot.touchState != _pendingProfile;
-        final bool controlsEnabled =
-            snapshot.ready && snapshot.touchHal == 1 && !snapshot.busy;
+        final bool controlsEnabled = snapshot.ready && !snapshot.busy;
 
         return RodinScrollPage(
           children: <Widget>[
@@ -4417,7 +4425,7 @@ class _TouchBoostScreenState extends State<TouchBoostScreen> {
               title: _profileTitle(activeProfile),
               subtitle: snapshot.touchHal == 1
                   ? '${_profileRate(activeProfile)} · $panel · $engine'
-                  : 'Rodin touch engine unavailable on this vendor stack',
+                  : 'Duchamp touch engine unavailable on this vendor stack',
             ),
             const SizedBox(height: 12),
             _TouchProfileGrid(
@@ -5481,7 +5489,7 @@ class _CpuControlScreenState extends State<CpuControlScreen> {
                                     fit: BoxFit.scaleDown,
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      'Dimensity 8400-Ultra CPU',
+                                      'Dimensity 8300-Ultra CPU',
                                       style: TextStyle(
                                         fontSize: 14.5,
                                         fontWeight: FontWeight.w800,
@@ -7078,7 +7086,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
                 Expanded(
                   child: Text(
                     isNative
-                        ? 'Reset to Rodin 1.5K Native Panel'
+                        ? 'Reset to Duchamp 1.5K Native Panel'
                         : 'Applied $label ($width × $height @ ${density}DPI)',
                     style: const TextStyle(
                       fontSize: 13.5,
@@ -7160,7 +7168,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
             density: nativeDensity,
             aspectRatio: '20:9',
             description:
-                'Rodin physical hardware panel resolution. Maximum sharpness and true 1:1 pixel rendering with zero scaling.',
+                'Duchamp physical hardware panel resolution. Maximum sharpness and true 1:1 pixel rendering with zero scaling.',
             accentColor: const Color(0xFF59BCFF),
             icon: Icons.auto_awesome_rounded,
             isActive: isNative,
@@ -7214,7 +7222,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
             DetailHeader(title: 'Resolution', onBack: widget.onBack),
             const SizedBox(height: 4),
             Text(
-              'ROM-aware resolution and logical-density scaling for Rodin (1220×2712 1.5K AMOLED)',
+              'ROM-aware resolution and logical-density scaling for Duchamp (1220×2712 1.5K AMOLED)',
               style: TextStyle(fontSize: 13.5, color: colors.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
@@ -7265,7 +7273,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
                             const SizedBox(height: 2),
                             Text(
                               isNative
-                                  ? 'Rodin 1.5K AMOLED Native (1:1 Map)'
+                                  ? 'Duchamp 1.5K AMOLED Native (1:1 Map)'
                                   : isFhd
                                   ? 'FHD+ High Performance Mode'
                                   : isHd
@@ -7382,7 +7390,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
             Row(
               children: <Widget>[
                 const Text(
-                  'RODIN PRESET MAPPINGS',
+                  'DUCHAMP PRESET MAPPINGS',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
@@ -7658,7 +7666,7 @@ class _ResolutionScreenState extends State<ResolutionScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   const Text(
-                    'Rodin Display Architecture',
+                    'Duchamp Display Architecture',
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w800,
@@ -8221,7 +8229,7 @@ class _ZramSwapScreenState extends State<ZramSwapScreen> {
             badge: '8 GB DEFAULT',
             sizeMb: 8192,
             description:
-                'Recommended factory configuration for Rodin. Perfect balance of multitasking speed and battery life.',
+                'Recommended factory configuration for Duchamp. Perfect balance of multitasking speed and battery life.',
             accentColor: const Color(0xFF41C98A),
             icon: Icons.verified_rounded,
             isActive: !_isCustomMode && activeSizeMb == 8192,
@@ -8258,7 +8266,7 @@ class _ZramSwapScreenState extends State<ZramSwapScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Hardware memory compression, swap sizing, and kernel swappiness tuning for Rodin',
+                  'Hardware memory compression, swap sizing, and kernel swappiness tuning for Duchamp',
                   style: TextStyle(
                     fontSize: 13.5,
                     color: colors.onSurfaceVariant,
@@ -9401,8 +9409,8 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
     setState(() {
       _optimisticProfile = 0;
       _optimisticUncap = false;
-      _optimisticMinFreq = 260;
-      _optimisticMaxFreq = 1300;
+      _optimisticMinFreq = 265;
+      _optimisticMaxFreq = 1400;
       _optimisticGov = 4;
       _optimisticGedBoost = false;
       _optimisticPowerPolicy = 0;
@@ -9450,10 +9458,10 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
             : 0;
         final int rawMinFreq = backend.extendedValue(47) >= 0
             ? backend.extendedValue(47)
-            : 260;
+            : 265;
         final int rawMaxFreq = backend.extendedValue(48) >= 0
             ? backend.extendedValue(48)
-            : 1300;
+            : 1400;
         final int rawGovCode = backend.extendedValue(49) >= 0
             ? backend.extendedValue(49)
             : 0;
@@ -9480,8 +9488,8 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 ? snapshot.performanceProfile
                 : 0);
         final int requestedMaxFreq = switch (activePerf) {
-          3 => 1300,
-          1 => 1300,
+          3 => 1400,
+          1 => 1400,
           2 => 598,
           _ => rawMaxFreq,
         };
@@ -9489,14 +9497,14 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
         final bool isThrottledByOs =
             hasHardwareReadback &&
             ((activePerf == 3 &&
-                    ((liveCurFreq > 0 && liveCurFreq < 1300) ||
+                    ((liveCurFreq > 0 && liveCurFreq < 1400) ||
                         rawMaxFreq < requestedMaxFreq)) ||
                 ((activePerf == 1 || activePerf == 2) &&
                     rawMaxFreq < requestedMaxFreq));
         final bool isBeast =
             activePerf == 3 ||
             isUncapped ||
-            (activeMinFreq == 1300 && activeMaxFreq == 1300);
+            (activeMinFreq == 1400 && activeMaxFreq == 1400);
         final bool isGaming = !isBeast && activePerf == 1;
         final bool isBattery = !isBeast && activePerf == 2;
         final Color mainColor = isBeast
@@ -9515,16 +9523,16 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                         : Icons.balance_rounded));
         final String modeSummary = isBeast
             ? (liveCurFreq > 0
-                  ? 'Live: $liveCurFreq MHz · Fixed at 1.30 GHz'
-                  : 'Applying fixed 1.30 GHz lock')
+                  ? 'Live: $liveCurFreq MHz · Fixed at 1.40 GHz'
+                  : 'Applying fixed 1.40 GHz lock')
             : (isGaming
                   ? (liveCurFreq > 0
-                        ? 'Live: $liveCurFreq MHz · Scaling freely to 1.30 GHz'
-                        : 'Full-range scaling · 260–1300 MHz')
+                        ? 'Live: $liveCurFreq MHz · Scaling freely to 1.40 GHz'
+                        : 'Full-range scaling · 265–1400 MHz')
                   : (isBattery
                         ? (liveCurFreq > 0
                               ? 'Live: $liveCurFreq MHz · Efficiency cap at 598 MHz'
-                              : 'Efficiency range · 260–598 MHz')
+                              : 'Efficiency range · 265–598 MHz')
                         : (liveCurFreq > 0
                               ? 'Live: $liveCurFreq MHz · OEM-managed behavior'
                               : 'Vendor-managed clocks and power policy')));
@@ -9565,7 +9573,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 HeroCard(
                   icon: modeIcon,
                   accent: mainColor,
-                  title: 'Mali-G720 Graphics',
+                  title: 'Mali-G615 Graphics',
                   subtitle: modeSummary,
                 ),
                 const SizedBox(height: 12),
@@ -9649,7 +9657,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
     final bool isBeast =
         activeProfile == 3 ||
         isUncapped ||
-        (minFreq == 1300 && maxFreq == 1300);
+        (minFreq == 1400 && maxFreq == 1400);
     final bool isGaming = !isBeast && activeProfile == 1;
     final bool isBattery = !isBeast && activeProfile == 2;
 
@@ -9665,14 +9673,14 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
 
     final String clockSubtext = isBeast
         ? (isThrottledByOs
-              ? 'External clock limit detected · 1300 MHz remains the target'
-              : (profileVerified && liveCurFreq == 1300
-                    ? 'Fixed 1.30 GHz target verified from live hardware telemetry'
-                    : 'Fixed 1.30 GHz target requested · waiting for live verification'))
+              ? 'External clock limit detected · 1400 MHz remains the target'
+              : (profileVerified && liveCurFreq == 1400
+                    ? 'Fixed 1.40 GHz target verified from live hardware telemetry'
+                    : 'Fixed 1.40 GHz target requested · waiting for live verification'))
         : (isGaming
               ? (liveCurFreq > 0
-                    ? 'Dynamic Gaming Load ($liveCurFreq MHz · 1.30 GHz Ceiling)'
-                    : 'Standby Dynamic (260 – 1300 MHz · GED Boost Active)')
+                    ? 'Dynamic Gaming Load ($liveCurFreq MHz · 1.40 GHz Ceiling)'
+                    : 'Standby Dynamic (265 – 1400 MHz · GED Boost Active)')
               : (isBattery
                     ? (liveCurFreq > 0
                           ? 'Live $liveCurFreq MHz · $minFreq–$maxFreq MHz Battery Range'
@@ -9682,7 +9690,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                           : 'Waiting for OEM GPU telemetry')));
 
     final String badgeTitle = isBeast
-        ? '1.30 GHz FIXED TARGET'
+        ? '1.40 GHz FIXED TARGET'
         : (isGaming
               ? 'GAMING DYNAMIC BOOST'
               : (isBattery ? 'BATTERY SAVER CLAMP' : 'DYNAMIC BALANCED'));
@@ -9726,7 +9734,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                       ),
                     ),
                     Text(
-                      'Dimensity 8400-Ultra · Mali-G720 7-Core',
+                      'Dimensity 8300-Ultra · Mali-G615 MC6',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: colors.onSurfaceVariant,
@@ -9735,7 +9743,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                   ],
                 ),
               ),
-              if (maxFreq >= 1300)
+              if (maxFreq >= 1400)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -9749,7 +9757,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                     ),
                   ),
                   child: const Text(
-                    '1.30 GHz Target',
+                    '1.40 GHz Target',
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
@@ -9954,7 +9962,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
   }) {
     final bool isBeast =
         activeProfile == 3 ||
-        (activeProfile < 0 && isUncapped && minFreq == 1300 && maxFreq == 1300);
+        (activeProfile < 0 && isUncapped && minFreq == 1400 && maxFreq == 1400);
     final bool isGaming = activeProfile == 1;
     final bool isBattery = activeProfile == 2;
     final bool isStock = !isBeast && !isGaming && !isBattery;
@@ -9979,18 +9987,18 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Extreme Beast',
-                range: '1300 MHz fixed · No downclock',
+                range: '1400 MHz fixed · No downclock',
                 icon: Icons.bolt_rounded,
                 accent: const Color(0xFFFF5252),
                 isActive: isBeast,
                 onTap: () => onSelect(
                   3,
-                  1300,
-                  1300,
+                  1400,
+                  1400,
                   1,
                   true,
                   1,
-                  'Extreme Beast · Fixed 1.30 GHz',
+                  'Extreme Beast · Fixed 1.40 GHz',
                   Icons.bolt_rounded,
                   const Color(0xFFFF5252),
                 ),
@@ -10002,14 +10010,14 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Gaming Dynamic',
-                range: '260–1300 MHz · Full-range scaling',
+                range: '265–1400 MHz · Full-range scaling',
                 icon: Icons.sports_esports_rounded,
                 accent: const Color(0xFFFFB84D),
                 isActive: isGaming,
                 onTap: () => onSelect(
                   1,
-                  260,
-                  1300,
+                  265,
+                  1400,
                   0,
                   true,
                   1,
@@ -10035,8 +10043,8 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isActive: isStock,
                 onTap: () => onSelect(
                   0,
-                  260,
-                  1300,
+                  265,
+                  1400,
                   4,
                   false,
                   0,
@@ -10052,13 +10060,13 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
                 isDark: isDark,
                 colors: colors,
                 title: 'Battery Saver',
-                range: '260–598 MHz · Efficiency cap',
+                range: '265–598 MHz · Efficiency cap',
                 icon: Icons.energy_savings_leaf_rounded,
                 accent: const Color(0xFF41C98A),
                 isActive: isBattery,
                 onTap: () => onSelect(
                   2,
-                  260,
+                  265,
                   598,
                   2,
                   false,
@@ -10601,7 +10609,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
           _buildDetailRow(
             colors,
             'GPU Architecture',
-            'Mali-G720 7-Core r0p1 (0x0C080700)',
+            'Mali-G615 MC6 · MediaTek MT6897',
           ),
           _buildDetailRow(
             colors,
@@ -10619,7 +10627,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
             thermalState < 0
                 ? 'Unavailable'
                 : (thermalState == 0
-                      ? '0 (Rodin unrestricted override)'
+                      ? '0 (Duchamp unrestricted override)'
                       : '$thermalState (vendor managed)'),
           ),
           _buildDetailRow(
@@ -10630,7 +10638,7 @@ class _MaliGpuScreenState extends State<MaliGpuScreen> {
           _buildDetailRow(
             colors,
             'Hardware Frequencies',
-            '41 Clock Steps (260 MHz → 1.30 GHz)',
+            '65 Clock Steps (265 MHz → 1.40 GHz)',
           ),
         ],
       ),

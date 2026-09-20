@@ -23,7 +23,7 @@
         android:debuggable="false"
         android:extractNativeLibs="false"
         android:hasCode="false"
-        android:label="Rodin Essential"
+        android:label="Duchamp Essential"
         android:supportsRtl="true">
 
         <activity
