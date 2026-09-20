@@ -2950,6 +2950,16 @@ unsafe extern "C" fn on_window_resized(activity: *mut ANativeActivity, window: *
 
     unsafe { replace_window(state, window) };
     unsafe { send_metrics(activity, state) };
+
+    // Some Android vendors resize the existing native window in place during
+    // startup (for example, landscape launch buffer -> portrait activity).
+    // Metrics alone do not guarantee that Flutter requests another raster
+    // frame, leaving the old launch buffer visible in only part of the screen.
+    let engine = input_engine(state);
+    if engine != 0 {
+        let rc = unsafe { FlutterEngineScheduleFrame(engine as *mut c_void) };
+        log_str(&format!("WINDOW_RESIZE_FRAME_SCHEDULE=PASS rc={rc}"));
+    }
 }
 
 unsafe extern "C" fn on_window_redraw(activity: *mut ANativeActivity, _: *mut ANativeWindow) {
